@@ -44,6 +44,22 @@ public:
         return result;
     }
 
+    bool remove(int k) {
+        std::lock_guard<std::mutex> g(L);
+        Node* pred = head;
+        Node* curr = pred->next;
+        while (curr->key < k) {
+            pred = curr;
+            curr = curr->next;
+        }
+        bool result = (curr->key == k);
+        if (result) {
+            pred->next = curr->next;
+            delete curr;
+        }
+        return result;
+    }
+
     bool find(int k) {
         std::lock_guard<std::mutex> g(L);
         Node* curr = head;
