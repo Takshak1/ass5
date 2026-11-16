@@ -51,4 +51,59 @@ public:
         curr->lock.unlock();
         return found;
     }
+
+    bool insert(int k) {
+        Node* pred = head;
+        pred->lock.lock();
+        Node* curr = pred->next;
+        curr->lock.lock();
+        while (curr->key < k) {
+            pred->lock.unlock();
+            pred = curr;
+            curr = curr->next;
+            curr->lock.lock();
+        }
+        bool found = (curr->key == k);
+        if (!found) pred->next = new Node(k, curr);
+        pred->lock.unlock();
+        curr->lock.unlock();
+        return !found;
+    }
+
+    bool remove(int k) {
+        Node* pred = head;
+        pred->lock.lock();
+        Node* curr = pred->next;
+        curr->lock.lock();
+        while (curr->key < k) {
+            pred->lock.unlock();
+            pred = curr;
+            curr = curr->next;
+            curr->lock.lock();
+        }
+        bool found = (curr->key == k);
+        if (found) {
+            pred->next = curr->next;
+            curr->lock.unlock();
+            delete curr;
+            pred->lock.unlock();
+        } else {
+            pred->lock.unlock();
+            curr->lock.unlock();
+        }
+        return found;
+    }
+
+    // Single-threaded helpers for testing.
+    long size() const {
+        long n = 0;
+        for (Node* c = head->next; c->key != INT_MAX; c = c->next) n++;
+        return n;
+    }
+
+    bool is_sorted() const {
+        for (Node* c = head; c->next; c = c->next)
+            if (c->key >= c->next->key) return false;
+        return true;
+    }
 };
