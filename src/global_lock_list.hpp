@@ -1,5 +1,5 @@
 // Coarse-grained (global lock) sorted linked list - Lecture 17-18, slides 12-13.
-// One mutex L protects the whole list.
+// One mutex L protects the whole list; every operation holds it from start to end.
 #pragma once
 
 #include <climits>
@@ -48,19 +48,22 @@ public:
     }
 
     bool remove(int k) {
-        std::lock_guard<std::mutex> g(L);
-        Node* pred = head;
-        Node* curr = pred->next;
-        while (curr->key < k) {
-            pred = curr;
-            curr = curr->next;
+        Node* victim = nullptr;
+        {
+            std::lock_guard<std::mutex> g(L);
+            Node* pred = head;
+            Node* curr = pred->next;
+            while (curr->key < k) {
+                pred = curr;
+                curr = curr->next;
+            }
+            if (curr->key == k) {
+                pred->next = curr->next;
+                victim = curr;
+            }
         }
-        bool result = (curr->key == k);
-        if (result) {
-            pred->next = curr->next;
-            delete curr;
-        }
-        return result;
+        delete victim;  // already unlinked, no other thread can reach it
+        return victim != nullptr;
     }
 
     bool find(int k) {
