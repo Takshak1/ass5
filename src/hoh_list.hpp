@@ -1,6 +1,11 @@
 // Hand-over-hand (lock coupling) sorted linked list - Lecture 17-18, slides 24-26.
 // Every node has its own mutex. A traversal holds the locks of two adjacent
-// nodes (pred, curr) and locks the next node before unlocking the one behind it.
+// nodes (pred, curr) and locks the next node before unlocking the one behind
+// it. Locks are always taken in list order (head -> tail), so no deadlock
+// (slide 23).
+//
+// Deleting a node is safe: to lock or read curr a thread must already hold
+// pred's lock, and the deleter holds pred's lock while it unlinks and frees curr.
 #pragma once
 
 #include <climits>
@@ -15,6 +20,20 @@ class HohList {
     };
 
     Node* head;  // sentinel, key = INT_MIN
+
+    // Walk hand-over-hand until curr->key >= k. Returns with pred and curr locked.
+    void locate(int k, Node*& pred, Node*& curr) {
+        pred = head;
+        pred->lock.lock();
+        curr = pred->next;
+        curr->lock.lock();
+        while (curr->key < k) {
+            pred->lock.unlock();
+            pred = curr;
+            curr = curr->next;
+            curr->lock.lock();
+        }
+    }
 
 public:
     static constexpr const char* name = "hand-over-hand";
@@ -36,16 +55,8 @@ public:
     HohList& operator=(const HohList&) = delete;
 
     bool find(int k) {
-        Node* pred = head;
-        pred->lock.lock();
-        Node* curr = pred->next;
-        curr->lock.lock();
-        while (curr->key < k) {
-            pred->lock.unlock();
-            pred = curr;
-            curr = curr->next;
-            curr->lock.lock();
-        }
+        Node *pred, *curr;
+        locate(k, pred, curr);
         bool found = (curr->key == k);
         pred->lock.unlock();
         curr->lock.unlock();
@@ -53,16 +64,8 @@ public:
     }
 
     bool insert(int k) {
-        Node* pred = head;
-        pred->lock.lock();
-        Node* curr = pred->next;
-        curr->lock.lock();
-        while (curr->key < k) {
-            pred->lock.unlock();
-            pred = curr;
-            curr = curr->next;
-            curr->lock.lock();
-        }
+        Node *pred, *curr;
+        locate(k, pred, curr);
         bool found = (curr->key == k);
         if (!found) pred->next = new Node(k, curr);
         pred->lock.unlock();
@@ -71,16 +74,8 @@ public:
     }
 
     bool remove(int k) {
-        Node* pred = head;
-        pred->lock.lock();
-        Node* curr = pred->next;
-        curr->lock.lock();
-        while (curr->key < k) {
-            pred->lock.unlock();
-            pred = curr;
-            curr = curr->next;
-            curr->lock.lock();
-        }
+        Node *pred, *curr;
+        locate(k, pred, curr);
         bool found = (curr->key == k);
         if (found) {
             pred->next = curr->next;
