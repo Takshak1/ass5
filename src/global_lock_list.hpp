@@ -1,4 +1,5 @@
 // Coarse-grained (global lock) sorted linked list - Lecture 17-18, slides 12-13.
+// One mutex L protects the whole list.
 #pragma once
 
 #include <climits>
@@ -28,5 +29,25 @@ public:
             delete head;
             head = next;
         }
+    }
+
+    bool insert(int k) {
+        std::lock_guard<std::mutex> g(L);
+        Node* pred = head;
+        Node* curr = pred->next;
+        while (curr->key < k) {
+            pred = curr;
+            curr = curr->next;
+        }
+        bool result = (curr->key != k);
+        if (result) pred->next = new Node(k, curr);
+        return result;
+    }
+
+    bool find(int k) {
+        std::lock_guard<std::mutex> g(L);
+        Node* curr = head;
+        while (curr->key < k) curr = curr->next;
+        return curr->key == k;
     }
 };
