@@ -31,6 +31,9 @@ public:
         }
     }
 
+    GlobalLockList(const GlobalLockList&) = delete;
+    GlobalLockList& operator=(const GlobalLockList&) = delete;
+
     bool insert(int k) {
         std::lock_guard<std::mutex> g(L);
         Node* pred = head;
@@ -65,5 +68,18 @@ public:
         Node* curr = head;
         while (curr->key < k) curr = curr->next;
         return curr->key == k;
+    }
+
+    // Single-threaded helpers for testing.
+    long size() const {
+        long n = 0;
+        for (Node* c = head->next; c->key != INT_MAX; c = c->next) n++;
+        return n;
+    }
+
+    bool is_sorted() const {
+        for (Node* c = head; c->next; c = c->next)
+            if (c->key >= c->next->key) return false;
+        return true;
     }
 };
